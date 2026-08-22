@@ -24,11 +24,19 @@ export const Route = createFileRoute("/")({
   component: Feed,
 });
 
-async function fetchVideo(): Promise<VideoItem> {
-  const res = await fetch("/api/public/video");
-  if (!res.ok) throw new Error("failed");
-  const data = await res.json();
-  return { ...data, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+async function fetchVideo(retries = 3): Promise<VideoItem> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch("/api/public/video");
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      return { ...data, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+  throw new Error("failed");
 }
 
 function Feed() {

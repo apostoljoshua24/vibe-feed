@@ -43,9 +43,11 @@ function Feed() {
     if (loadingRef.current) return;
     loadingRef.current = true;
     try {
-      const next = await Promise.all(Array.from({ length: count }, () => fetchVideo()));
-      setItems((prev) => [...prev, ...next]);
-      setError(false);
+      for (let i = 0; i < count; i++) {
+        const video = await fetchVideo();
+        setItems((prev) => [...prev, video]);
+        setError(false);
+      }
     } catch {
       setError(true);
     } finally {

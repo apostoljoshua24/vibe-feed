@@ -3,7 +3,11 @@
 // Video source: called directly from the app. Falls back to the hosted proxy
 // if the device blocks the direct cross-origin call.
 const SOURCE = "https://girledit-api-version-2.vercel.app/api/request/f";
-const PROXY = "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2.lovable.app/api/public/video";
+const PROXIES = [
+  "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2.lovable.app/api/public/video",
+  "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2-dev.lovable.app/api/public/video",
+];
+let proxyIdx = 0;
 const BODY = JSON.stringify({ credits: "Eugene Aguilar" });
 
 const feed = document.getElementById("feed");
@@ -43,10 +47,11 @@ async function fetchVideo() {
   while (Date.now() < deadline) {
     try {
       const attempts = [0, 1, 2].map(() =>
-        useProxy ? once(PROXY, false) : once(SOURCE, true),
+        useProxy ? once(PROXIES[proxyIdx % PROXIES.length], false) : once(SOURCE, true),
       );
       return await Promise.any(attempts);
     } catch {
+      if (useProxy) proxyIdx++;
       useProxy = !useProxy; // alternate direct / proxy
       await new Promise((r) => setTimeout(r, 300));
     }

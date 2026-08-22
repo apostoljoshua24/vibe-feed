@@ -2,6 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const SOURCE = "https://girledit-api-version-2.vercel.app/api/request/f";
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 async function fetchOne() {
   const res = await fetch(SOURCE, {
     method: "POST",
@@ -36,7 +42,7 @@ export const Route = createFileRoute("/api/public/video")({
               fetchOne(),
             ]);
             return new Response(JSON.stringify(video), {
-              headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+              headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" },
             });
           } catch {
             await new Promise((r) => setTimeout(r, 200));
@@ -44,9 +50,10 @@ export const Route = createFileRoute("/api/public/video")({
         }
         return new Response(JSON.stringify({ error: "Unable to load video" }), {
           status: 502,
-          headers: { "Content-Type": "application/json" },
+          headers: { ...CORS, "Content-Type": "application/json" },
         });
       },
+      OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
 
 
     },

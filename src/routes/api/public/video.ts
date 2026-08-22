@@ -23,14 +23,15 @@ export const Route = createFileRoute("/api/public/video")({
   server: {
     handlers: {
       GET: async () => {
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (let attempt = 0; attempt < 4; attempt++) {
           try {
-            const video = await fetchOne();
+            // Upstream is flaky: race a few parallel attempts and take the first success.
+            const video = await Promise.any([fetchOne(), fetchOne(), fetchOne()]);
             return new Response(JSON.stringify(video), {
               headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
             });
-          } catch (e) { console.error("video fetch failed", e);
-            await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+          } catch {
+            await new Promise((r) => setTimeout(r, 200));
           }
         }
         return new Response(JSON.stringify({ error: "Unable to load video" }), {
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/api/public/video")({
           headers: { "Content-Type": "application/json" },
         });
       },
+
     },
   },
 });

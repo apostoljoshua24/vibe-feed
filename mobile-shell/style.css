@@ -1,0 +1,265 @@
+:root {
+  --bg: #0a0a0b;
+  --fg: #fafafa;
+  --muted: #9b9ba1;
+  --accent: #c4f82a;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  overscroll-behavior: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Splash */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  background: var(--bg);
+  transition: opacity 0.35s ease;
+}
+.splash.out {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash-logo {
+  width: 96px;
+  height: 96px;
+  border-radius: 24px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.splash-text {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+
+/* Top bar */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  pointer-events: none;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+.brand img {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+/* Feed */
+.feed {
+  height: 100dvh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+.feed::-webkit-scrollbar {
+  display: none;
+}
+
+.card {
+  position: relative;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stage {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+}
+@media (min-width: 768px) {
+  .stage {
+    width: auto;
+    aspect-ratio: 9 / 16;
+    border-radius: 18px;
+    box-shadow: 0 0 80px rgba(196, 248, 42, 0.12);
+  }
+}
+.stage video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.failed {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: rgba(10, 10, 11, 0.86);
+  text-align: center;
+  padding: 24px;
+}
+.failed p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+button.retry {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: 700;
+  font-size: 14px;
+  background: var(--accent);
+  color: #0a0a0b;
+}
+
+.shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 45%;
+  background: linear-gradient(to top, rgba(10, 10, 11, 0.92), transparent);
+  pointer-events: none;
+}
+
+.actions {
+  position: absolute;
+  right: 10px;
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.act {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  padding: 0;
+  transition: transform 0.12s ease;
+}
+.act:active {
+  transform: scale(0.88);
+}
+.act svg {
+  width: 30px;
+  height: 30px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+}
+.act .count {
+  font-size: 11px;
+  font-weight: 600;
+}
+.act.liked {
+  color: var(--accent);
+}
+.act.liked svg path {
+  fill: currentColor;
+}
+
+.meta {
+  position: absolute;
+  left: 16px;
+  right: 84px;
+  bottom: calc(env(safe-area-inset-bottom) + 26px);
+}
+.meta p {
+  margin: 0;
+}
+.meta .user {
+  font-weight: 700;
+  font-size: 15px;
+}
+.meta .nick {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.meta .desc {
+  font-size: 12px;
+  color: rgba(155, 155, 161, 0.85);
+  margin-top: 6px;
+}
+
+.bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+}

@@ -19,7 +19,9 @@
  */
 
 @theme inline {
+  --shadow-glow: 0 0 60px oklch(0.72 0.19 12 / 18%);
   --radius-sm: calc(var(--radius) - 4px);
+
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);

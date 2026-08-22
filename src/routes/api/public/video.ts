@@ -23,10 +23,18 @@ export const Route = createFileRoute("/api/public/video")({
   server: {
     handlers: {
       GET: async () => {
-        for (let attempt = 0; attempt < 4; attempt++) {
+        // Upstream is flaky: fire several parallel attempts per round and
+        // keep retrying within a time budget before giving up.
+        const deadline = Date.now() + 25_000;
+        while (Date.now() < deadline) {
           try {
-            // Upstream is flaky: race a few parallel attempts and take the first success.
-            const video = await Promise.any([fetchOne(), fetchOne(), fetchOne()]);
+            const video = await Promise.any([
+              fetchOne(),
+              fetchOne(),
+              fetchOne(),
+              fetchOne(),
+              fetchOne(),
+            ]);
             return new Response(JSON.stringify(video), {
               headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
             });
@@ -39,6 +47,7 @@ export const Route = createFileRoute("/api/public/video")({
           headers: { "Content-Type": "application/json" },
         });
       },
+
 
     },
   },

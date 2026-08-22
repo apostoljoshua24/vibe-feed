@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/video")({
             return new Response(JSON.stringify(video), {
               headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
             });
-          } catch {
+          } catch (e) { console.error("video fetch failed", e);
             await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
           }
         }

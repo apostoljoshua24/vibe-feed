@@ -120,7 +120,17 @@ function buildCard(item, index) {
   video.muted = muted;
   node.querySelector(".user").textContent = "@" + item.username;
   node.querySelector(".nick").textContent = item.nickname;
-  node.querySelector(".desc").textContent = item.title || "Random video";
+  const desc = node.querySelector(".desc");
+  const moreBtn = node.querySelector(".more");
+  desc.textContent = item.title || "Random video";
+  desc.classList.add("clamped");
+  requestAnimationFrame(() => {
+    if (desc.scrollHeight - desc.clientHeight > 2) moreBtn.classList.remove("hidden");
+  });
+  moreBtn.addEventListener("click", () => {
+    const open = desc.classList.toggle("clamped");
+    moreBtn.textContent = open ? "See more" : "See less";
+  });
   likeCount.textContent = String(Math.floor(Math.random() * 900) + 40);
   node.querySelector(".comment .count").textContent = String(Math.floor(Math.random() * 200) + 3);
 

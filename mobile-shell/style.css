@@ -273,3 +273,23 @@ button.retry {
   text-align: center;
   word-break: break-word;
 }
+
+.meta .desc.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.meta .more {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.meta .more.hidden {
+  display: none;
+}

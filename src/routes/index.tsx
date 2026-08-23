@@ -6,13 +6,13 @@ import { VideoCard, type VideoItem } from "@/components/VideoCard";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Loop — Endless Short Video Feed" },
+      { title: "SacShawty — Endless Short Video Feed" },
       {
         name: "description",
         content:
           "Swipe through an endless vertical feed of random short videos. No login, instant playback, mobile-first.",
       },
-      { property: "og:title", content: "Loop — Endless Short Video Feed" },
+      { property: "og:title", content: "SacShawty — Endless Short Video Feed" },
       {
         property: "og:description",
         content: "Swipe through an endless vertical feed of random short videos. No login needed.",
@@ -42,7 +42,7 @@ async function fetchVideo(retries = 3): Promise<VideoItem> {
 function Feed() {
   const [items, setItems] = useState<VideoItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [error, setError] = useState(false);
   const loadingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,7 +116,7 @@ function Feed() {
     <main className="relative h-[100dvh] w-full overflow-hidden bg-background">
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
         <h1 className="flex items-center gap-1.5 text-lg font-black tracking-tight text-foreground">
-          <Zap className="size-5 text-primary" /> Loop
+          <Zap className="size-5 text-primary" /> SacShawty
         </h1>
         <button
           aria-label="Search"

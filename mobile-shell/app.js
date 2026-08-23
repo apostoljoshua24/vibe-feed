@@ -14,7 +14,29 @@ const feed = document.getElementById("feed");
 const tpl = document.getElementById("card-tpl");
 const splash = document.getElementById("splash");
 
-let muted = true;
+let muted = false;
+
+// Play with sound; if the platform blocks unmuted autoplay, fall back to muted.
+function playVideo(video) {
+  video.muted = muted;
+  const p = video.play();
+  if (p && p.catch) {
+    p.catch(() => {
+      muted = true;
+      video.muted = true;
+      syncMuteIcons();
+      video.play().catch(() => {});
+    });
+  }
+}
+
+function syncMuteIcons() {
+  cards.forEach((c) => {
+    c.video.muted = muted;
+    c.node.querySelector(".ico-muted").classList.toggle("hidden", !muted);
+    c.node.querySelector(".ico-loud").classList.toggle("hidden", muted);
+  });
+}
 let loading = false;
 const cards = [];
 let active = -1;
@@ -98,7 +120,17 @@ function buildCard(item, index) {
   video.muted = muted;
   node.querySelector(".user").textContent = "@" + item.username;
   node.querySelector(".nick").textContent = item.nickname;
-  node.querySelector(".desc").textContent = item.title || "Random video";
+  const desc = node.querySelector(".desc");
+  const moreBtn = node.querySelector(".more");
+  desc.textContent = item.title || "Random video";
+  desc.classList.add("clamped");
+  requestAnimationFrame(() => {
+    if (desc.scrollHeight - desc.clientHeight > 2) moreBtn.classList.remove("hidden");
+  });
+  moreBtn.addEventListener("click", () => {
+    const open = desc.classList.toggle("clamped");
+    moreBtn.textContent = open ? "See more" : "See less";
+  });
   likeCount.textContent = String(Math.floor(Math.random() * 900) + 40);
   node.querySelector(".comment .count").textContent = String(Math.floor(Math.random() * 200) + 3);
 
@@ -114,7 +146,7 @@ function buildCard(item, index) {
     failed.classList.add("hidden");
     spinner.classList.remove("hidden");
     video.load();
-    video.play().catch(() => {});
+    playVideo(video);
   });
 
   let liked = false;
@@ -135,15 +167,11 @@ function buildCard(item, index) {
 
   muteBtn.addEventListener("click", () => {
     muted = !muted;
-    cards.forEach((c) => {
-      c.video.muted = muted;
-      c.node.querySelector(".ico-muted").classList.toggle("hidden", !muted);
-      c.node.querySelector(".ico-loud").classList.toggle("hidden", muted);
-    });
+    syncMuteIcons();
   });
 
   video.addEventListener("click", () => {
-    if (video.paused) video.play().catch(() => {});
+    if (video.paused) playVideo(video);
     else video.pause();
   });
 
@@ -163,8 +191,7 @@ const observer = new IntersectionObserver(
         active = idx;
         cards.forEach((c, i) => {
           if (i === idx) {
-            c.video.muted = muted;
-            c.video.play().catch(() => {});
+            playVideo(c.video);
           } else if (!c.video.paused) {
             c.video.pause();
             c.video.currentTime = 0;
@@ -190,7 +217,7 @@ async function loadMore(count) {
       if (cards.length === 1) {
         splash.classList.add("out");
         setTimeout(() => splash.classList.add("hidden"), 400);
-        card.video.play().catch(() => {});
+        playVideo(card.video);
         active = 0;
       }
     }
@@ -215,7 +242,7 @@ document.addEventListener("visibilitychange", () => {
   const card = cards[active];
   if (!card) return;
   if (document.hidden) card.video.pause();
-  else card.video.play().catch(() => {});
+  else playVideo(card.video);
 });
 
 loadMore(2);

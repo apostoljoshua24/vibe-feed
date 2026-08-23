@@ -4,8 +4,8 @@
 // if the device blocks the direct cross-origin call.
 const SOURCE = "https://girledit-api-version-2.vercel.app/api/request/f";
 const PROXIES = [
-  "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2.lovable.app/api/public/video",
   "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2-dev.lovable.app/api/public/video",
+  "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2.lovable.app/api/public/video",
 ];
 let proxyIdx = 0;
 const BODY = JSON.stringify({ credits: "Eugene Aguilar" });

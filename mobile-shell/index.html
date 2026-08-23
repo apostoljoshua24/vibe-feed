@@ -20,9 +20,23 @@
 
     <header class="topbar">
       <span class="brand"><img src="icon.png" alt="" />SacShawty</span>
+      <button id="menu-btn" class="menu-btn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
     </header>
 
+    <div id="menu" class="sheet hidden">
+      <div class="sheet-panel">
+        <button class="sheet-item" data-action="online">Feed</button>
+        <button class="sheet-item" data-action="offline">Offline downloads (<span id="off-count">0</span>)</button>
+        <button class="sheet-item" data-action="close">Close</button>
+      </div>
+    </div>
+
     <main id="feed" class="feed"></main>
+    <main id="offline" class="feed hidden">
+      <div id="offline-empty" class="offline-empty">No downloads yet. Tap the download button on a video.</div>
+    </main>
 
     <template id="card-tpl">
       <section class="card">
@@ -43,8 +57,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-4-.9L3 21l1.9-5a8.4 8.4 0 0 1 3.6-11.4 8.9 8.9 0 0 1 4-.9 8.4 8.4 0 0 1 8.5 7.8z"/></svg>
               <span class="count">0</span>
             </button>
-            <button class="act share" aria-label="Share">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+            <button class="act download" aria-label="Download">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
+              <span class="count dl-label">Save</span>
             </button>
             <button class="act mute" aria-label="Mute">
               <svg class="ico-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6M17 9l6 6"/></svg>

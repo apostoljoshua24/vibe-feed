@@ -31,7 +31,27 @@ function normalize(raw) {
   };
 }
 
+function nativeHttp() {
+  const cap = window.Capacitor;
+  return cap && cap.Plugins && cap.Plugins.CapacitorHttp ? cap.Plugins.CapacitorHttp : null;
+}
+
 async function once(endpoint, direct) {
+  const http = nativeHttp();
+  if (http) {
+    // Native HTTP: no CORS, no preflight, works from the file:// WebView origin.
+    const res = await http.request({
+      url: endpoint,
+      method: direct ? "POST" : "GET",
+      headers: direct ? { "Content-Type": "application/json" } : {},
+      data: direct ? { credits: "Eugene Aguilar" } : undefined,
+      connectTimeout: 15000,
+      readTimeout: 20000,
+    });
+    if (res.status < 200 || res.status >= 300) throw new Error("http " + res.status);
+    const body = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+    return normalize(body);
+  }
   const res = await fetch(endpoint, {
     method: direct ? "POST" : "GET",
     headers: direct ? { "Content-Type": "application/json" } : undefined,
@@ -41,16 +61,19 @@ async function once(endpoint, direct) {
   return normalize(await res.json());
 }
 
+let lastError = "";
+
 async function fetchVideo() {
-  const deadline = Date.now() + 25000;
+  const deadline = Date.now() + 45000;
   let useProxy = false;
   while (Date.now() < deadline) {
     try {
-      const attempts = [0, 1, 2].map(() =>
+      const attempts = [0, 1, 2, 3, 4].map(() =>
         useProxy ? once(PROXIES[proxyIdx % PROXIES.length], false) : once(SOURCE, true),
       );
       return await Promise.any(attempts);
-    } catch {
+    } catch (err) {
+      lastError = (err && err.errors ? err.errors[0] : err) + "";
       if (useProxy) proxyIdx++;
       useProxy = !useProxy; // alternate direct / proxy
       await new Promise((r) => setTimeout(r, 300));
@@ -58,6 +81,7 @@ async function fetchVideo() {
   }
   throw new Error("unavailable");
 }
+
 
 function buildCard(item, index) {
   const node = tpl.content.firstElementChild.cloneNode(true);

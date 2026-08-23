@@ -263,3 +263,13 @@ button.retry {
   width: 0;
   background: var(--accent);
 }
+
+.splash-hint {
+  margin-top: 8px;
+  max-width: 80vw;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #6b7280;
+  text-align: center;
+  word-break: break-word;
+}

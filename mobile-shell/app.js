@@ -197,8 +197,11 @@ async function loadMore(count) {
   } catch {
     if (!cards.length) {
       splash.querySelector(".splash-text").textContent = "Tap to retry";
+      const hint = splash.querySelector(".splash-hint");
+      if (hint) hint.textContent = lastError.slice(0, 120);
       splash.onclick = () => {
         splash.querySelector(".splash-text").textContent = "Loading feed";
+        if (hint) hint.textContent = "";
         splash.onclick = null;
         loadMore(2);
       };

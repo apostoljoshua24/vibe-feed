@@ -146,7 +146,7 @@ function buildCard(item, index) {
     failed.classList.add("hidden");
     spinner.classList.remove("hidden");
     video.load();
-    video.play().catch(() => {});
+    playVideo(video);
   });
 
   let liked = false;
@@ -167,15 +167,11 @@ function buildCard(item, index) {
 
   muteBtn.addEventListener("click", () => {
     muted = !muted;
-    cards.forEach((c) => {
-      c.video.muted = muted;
-      c.node.querySelector(".ico-muted").classList.toggle("hidden", !muted);
-      c.node.querySelector(".ico-loud").classList.toggle("hidden", muted);
-    });
+    syncMuteIcons();
   });
 
   video.addEventListener("click", () => {
-    if (video.paused) video.play().catch(() => {});
+    if (video.paused) playVideo(video);
     else video.pause();
   });
 
@@ -195,8 +191,7 @@ const observer = new IntersectionObserver(
         active = idx;
         cards.forEach((c, i) => {
           if (i === idx) {
-            c.video.muted = muted;
-            c.video.play().catch(() => {});
+            playVideo(c.video);
           } else if (!c.video.paused) {
             c.video.pause();
             c.video.currentTime = 0;
@@ -222,7 +217,7 @@ async function loadMore(count) {
       if (cards.length === 1) {
         splash.classList.add("out");
         setTimeout(() => splash.classList.add("hidden"), 400);
-        card.video.play().catch(() => {});
+        playVideo(card.video);
         active = 0;
       }
     }
@@ -247,7 +242,7 @@ document.addEventListener("visibilitychange", () => {
   const card = cards[active];
   if (!card) return;
   if (document.hidden) card.video.pause();
-  else card.video.play().catch(() => {});
+  else playVideo(card.video);
 });
 
 loadMore(2);

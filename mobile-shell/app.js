@@ -14,7 +14,29 @@ const feed = document.getElementById("feed");
 const tpl = document.getElementById("card-tpl");
 const splash = document.getElementById("splash");
 
-let muted = true;
+let muted = false;
+
+// Play with sound; if the platform blocks unmuted autoplay, fall back to muted.
+function playVideo(video) {
+  video.muted = muted;
+  const p = video.play();
+  if (p && p.catch) {
+    p.catch(() => {
+      muted = true;
+      video.muted = true;
+      syncMuteIcons();
+      video.play().catch(() => {});
+    });
+  }
+}
+
+function syncMuteIcons() {
+  cards.forEach((c) => {
+    c.video.muted = muted;
+    c.node.querySelector(".ico-muted").classList.toggle("hidden", !muted);
+    c.node.querySelector(".ico-loud").classList.toggle("hidden", muted);
+  });
+}
 let loading = false;
 const cards = [];
 let active = -1;

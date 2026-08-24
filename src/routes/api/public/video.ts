@@ -16,7 +16,12 @@ async function fetchOne() {
   });
   if (!res.ok) throw new Error(`Upstream ${res.status}`);
   const data = (await res.json()) as Record<string, unknown>;
-  if (!data || typeof data["url"] !== "string") throw new Error("Invalid upstream payload");
+  
+  // Strict validation
+  if (!data || typeof data["url"] !== "string" || !data["url"].trim()) {
+    throw new Error("Invalid upstream payload: missing or empty URL");
+  }
+  
   return {
     url: data["url"] as string,
     username: (data["username"] as string) ?? "unknown",
@@ -44,18 +49,28 @@ export const Route = createFileRoute("/api/public/video")({
             return new Response(JSON.stringify(video), {
               headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" },
             });
-          } catch {
+          } catch (err) {
+            console.error("Video fetch attempt failed:", err);
             await new Promise((r) => setTimeout(r, 200));
           }
         }
-        return new Response(JSON.stringify({ error: "Unable to load video" }), {
-          status: 502,
-          headers: { ...CORS, "Content-Type": "application/json" },
-        });
+        
+        // Return error response with proper structure
+        return new Response(
+          JSON.stringify({ 
+            error: "Unable to load video",
+            url: null,
+            username: "error",
+            nickname: "Failed to load",
+            title: "Please try again"
+          }), 
+          {
+            status: 502,
+            headers: { ...CORS, "Content-Type": "application/json" },
+          }
+        );
       },
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
-
-
     },
   },
 });

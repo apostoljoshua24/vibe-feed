@@ -14,14 +14,26 @@ type Props = {
   active: boolean;
   muted: boolean;
   onToggleMute: () => void;
+  onRetry?: () => void;
 };
 
-export function VideoCard({ item, active, muted, onToggleMute }: Props) {
+export function VideoCard({ item, active, muted, onToggleMute, onRetry }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [liked, setLiked] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Validate URL on mount or when item changes
+  useEffect(() => {
+    if (!item.url) {
+      setLoading(false);
+      setFailed(true);
+    } else {
+      setFailed(false);
+      setLoading(true);
+    }
+  }, [item.url]);
 
   useEffect(() => {
     const v = ref.current;
@@ -50,24 +62,26 @@ export function VideoCard({ item, active, muted, onToggleMute }: Props) {
   return (
     <section className="relative h-[100dvh] w-full snap-start snap-always overflow-hidden bg-background">
       <div className="relative mx-auto flex h-full w-full items-center justify-center md:aspect-[9/16] md:h-full md:w-auto md:shadow-glow">
-        <video
-          ref={ref}
-          src={item.url}
-          className="h-full w-full object-cover"
-          loop
-          playsInline
-          muted={muted}
-          preload={active ? "auto" : "metadata"}
-          onLoadedData={() => setLoading(false)}
-          onError={() => {
-            setLoading(false);
-            setFailed(true);
-          }}
-          onTimeUpdate={(e) => {
-            const v = e.currentTarget;
-            if (v.duration) setProgress((v.currentTime / v.duration) * 100);
-          }}
-        />
+        {item.url && (
+          <video
+            ref={ref}
+            src={item.url}
+            className="h-full w-full object-cover"
+            loop
+            playsInline
+            muted={muted}
+            preload={active ? "auto" : "metadata"}
+            onLoadedData={() => setLoading(false)}
+            onError={() => {
+              setLoading(false);
+              setFailed(true);
+            }}
+            onTimeUpdate={(e) => {
+              const v = e.currentTarget;
+              if (v.duration) setProgress((v.currentTime / v.duration) * 100);
+            }}
+          />
+        )}
 
         {loading && !failed && (
           <div className="absolute inset-0 grid place-items-center bg-background/70">
@@ -77,16 +91,22 @@ export function VideoCard({ item, active, muted, onToggleMute }: Props) {
 
         {failed && (
           <div className="absolute inset-0 grid place-items-center gap-3 bg-background/85 p-6 text-center">
-            <p className="text-sm text-muted-foreground">Unable to load video</p>
+            <p className="text-sm text-muted-foreground">
+              {!item.url ? "Error: No video URL" : "Unable to load video"}
+            </p>
             <button
               onClick={() => {
-                setFailed(false);
-                setLoading(true);
-                ref.current?.load();
+                if (item.url) {
+                  setFailed(false);
+                  setLoading(true);
+                  ref.current?.load();
+                } else if (onRetry) {
+                  onRetry();
+                }
               }}
               className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
             >
-              Retry
+              {item.url ? "Retry" : "Tap to retry"}
             </button>
           </div>
         )}
@@ -120,9 +140,11 @@ export function VideoCard({ item, active, muted, onToggleMute }: Props) {
           </p>
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-foreground/10">
-          <div className="h-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
-        </div>
+        {item.url && (
+          <div className="absolute inset-x-0 bottom-0 h-0.5 bg-foreground/10">
+            <div className="h-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
+          </div>
+        )}
       </div>
     </section>
   );

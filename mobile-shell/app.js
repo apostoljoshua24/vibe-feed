@@ -2,7 +2,7 @@
 
 // Video source: called directly from the app. Falls back to the hosted proxy
 // if the device blocks the direct cross-origin call.
-const SOURCE = "https://girledit-api-version-2.vercel.app/api/request/f";
+const SOURCE = "https://assh-nu.vercel.app/api/request/f";
 const PROXIES = [
   "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2-dev.lovable.app/api/public/video",
   "https://project--a691ccd6-a37a-4d28-be72-6b983a02d6e2.lovable.app/api/public/video",
@@ -44,9 +44,9 @@ let active = -1;
 function normalize(raw) {
   const d = (raw && (raw.result || raw.data)) || raw || {};
   const url = d.url || d.video || d.link || d.videoUrl || (Array.isArray(d.urls) ? d.urls[0] : null);
-  if (!url) throw new Error("no url");
+  if (!url || typeof url !== 'string' || url.trim() === '') throw new Error("no url");
   return {
-    url,
+    url: url.trim(),
     username: d.username || d.author || "loopuser",
     nickname: d.nickname || d.name || "Loop creator",
     title: d.title || d.caption || "Random video",
@@ -60,48 +60,77 @@ function nativeHttp() {
 
 async function once(endpoint, direct) {
   const http = nativeHttp();
+  const timeoutMs = direct ? 12000 : 10000;
+  
   if (http) {
     // Native HTTP: no CORS, no preflight, works from the file:// WebView origin.
-    const res = await http.request({
-      url: endpoint,
-      method: direct ? "POST" : "GET",
-      headers: direct ? { "Content-Type": "application/json" } : {},
-      data: direct ? { credits: "Eugene Aguilar" } : undefined,
-      connectTimeout: 15000,
-      readTimeout: 20000,
-    });
-    if (res.status < 200 || res.status >= 300) throw new Error("http " + res.status);
-    const body = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-    return normalize(body);
+    try {
+      const res = await http.request({
+        url: endpoint,
+        method: direct ? "POST" : "GET",
+        headers: direct ? { "Content-Type": "application/json" } : {},
+        data: direct ? { credits: "Eugene Aguilar" } : undefined,
+        connectTimeout: timeoutMs,
+        readTimeout: timeoutMs,
+      });
+      if (res.status < 200 || res.status >= 300) throw new Error("http " + res.status);
+      const body = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+      return normalize(body);
+    } catch (err) {
+      throw new Error(`Native HTTP failed: ${err.message}`);
+    }
   }
-  const res = await fetch(endpoint, {
-    method: direct ? "POST" : "GET",
-    headers: direct ? { "Content-Type": "application/json" } : undefined,
-    body: direct ? BODY : undefined,
-  });
-  if (!res.ok) throw new Error("http " + res.status);
-  return normalize(await res.json());
+  
+  // Fetch API with AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const res = await fetch(endpoint, {
+      method: direct ? "POST" : "GET",
+      headers: direct ? { "Content-Type": "application/json" } : undefined,
+      body: direct ? BODY : undefined,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error("http " + res.status);
+    return normalize(await res.json());
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error("timeout");
+    }
+    throw err;
+  }
 }
 
 let lastError = "";
 
 async function fetchVideo() {
-  const deadline = Date.now() + 45000;
+  const deadline = Date.now() + 30000; // Reduced to 30 seconds
   let useProxy = false;
+  let attempts = 0;
+  
   while (Date.now() < deadline) {
     try {
-      const attempts = [0, 1, 2, 3, 4].map(() =>
-        useProxy ? once(PROXIES[proxyIdx % PROXIES.length], false) : once(SOURCE, true),
-      );
-      return await Promise.any(attempts);
+      const endpoint = useProxy ? PROXIES[proxyIdx % PROXIES.length] : SOURCE;
+      const promises = [0, 1, 2].map(() => once(endpoint, !useProxy)); // Reduced parallel attempts
+      return await Promise.any(promises);
     } catch (err) {
+      attempts++;
       lastError = (err && err.errors ? err.errors[0] : err) + "";
-      if (useProxy) proxyIdx++;
-      useProxy = !useProxy; // alternate direct / proxy
-      await new Promise((r) => setTimeout(r, 300));
+      
+      // Switch strategy after 2 attempts
+      if (attempts % 2 === 0) {
+        useProxy = !useProxy;
+        if (useProxy) proxyIdx++;
+      }
+      
+      // Shorter wait before retry
+      await new Promise((r) => setTimeout(r, 200));
     }
   }
-  throw new Error("unavailable");
+  throw new Error("unavailable after 30 seconds");
 }
 
 
@@ -221,7 +250,7 @@ async function loadMore(count) {
         active = 0;
       }
     }
-  } catch {
+  } catch (err) {
     if (!cards.length) {
       splash.querySelector(".splash-text").textContent = "Tap to retry";
       const hint = splash.querySelector(".splash-hint");

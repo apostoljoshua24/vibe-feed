@@ -24,32 +24,37 @@ export const Route = createFileRoute("/")({
   component: Feed,
 });
 
-async function fetchVideo(retries = 3): Promise<VideoItem> {
+async function fetchVideo(retries = 5): Promise<VideoItem> {
   for (let i = 0; i <= retries; i++) {
     try {
       const res = await fetch("/api/public/video");
-      if (!res.ok) throw new Error("failed");
+      if (!res.ok) throw new Error("Network error");
       const data = await res.json();
       
-      // Validate that we have a URL
-      if (!data.url || typeof data.url !== "string") {
-        throw new Error("No valid URL in response");
+      // Strict validation - reject if no URL or empty URL
+      if (!data.url || typeof data.url !== "string" || data.url.trim() === "") {
+        console.warn(`Attempt ${i + 1}: Invalid URL received:`, data);
+        throw new Error("Invalid response: missing or empty URL");
       }
       
       return { 
         ...data, 
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        url: data.url,
-        username: data.username || "unknown",
-        nickname: data.nickname || "Unknown",
-        title: data.title || "Random video",
+        url: data.url.trim(),
+        username: (data.username || "unknown").toString(),
+        nickname: (data.nickname || "Unknown").toString(),
+        title: (data.title || "Random video").toString(),
       };
     } catch (err) {
-      if (i === retries) throw err;
-      await new Promise((r) => setTimeout(r, 400));
+      console.error(`Fetch attempt ${i + 1} failed:`, err);
+      if (i === retries) {
+        throw err;
+      }
+      // Exponential backoff: 500ms, 1s, 1.5s, 2s, 2.5s
+      await new Promise((r) => setTimeout(r, 500 * (i + 1)));
     }
   }
-  throw new Error("failed");
+  throw new Error("Failed to fetch video after retries");
 }
 
 function Feed() {
@@ -64,31 +69,33 @@ function Feed() {
     if (loadingRef.current) return;
     loadingRef.current = true;
     try {
+      const newVideos: VideoItem[] = [];
       for (let i = 0; i < count; i++) {
         const video = await fetchVideo();
-        setItems((prev) => [...prev, video]);
-        setError(false);
+        newVideos.push(video);
       }
+      setItems((prev) => [...prev, ...newVideos]);
+      setError(false);
     } catch (err) {
-      console.error("Failed to load video:", err);
+      console.error("Failed to load videos:", err);
       setError(true);
     } finally {
       loadingRef.current = false;
     }
   }, []);
 
-  // Reload a specific item by index
-  const reloadItem = useCallback(async (index: number) => {
+  // Reload a specific video by replacing it
+  const reloadVideo = useCallback(async (index: number) => {
     try {
-      const video = await fetchVideo();
+      const newVideo = await fetchVideo();
       setItems((prev) => {
         const updated = [...prev];
-        updated[index] = video;
+        updated[index] = newVideo;
         return updated;
       });
       setError(false);
     } catch (err) {
-      console.error("Failed to reload video:", err);
+      console.error("Failed to reload video at index", index, err);
       setError(true);
     }
   }, []);
@@ -124,9 +131,15 @@ function Feed() {
       <main className="grid h-[100dvh] place-items-center bg-background px-6 text-center">
         {error ? (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Unable to load video</p>
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-foreground">Unable to load video</p>
+              <p className="text-xs text-muted-foreground/70">Please check your connection and try again</p>
+            </div>
             <button
-              onClick={() => loadMore(2)}
+              onClick={() => {
+                setError(false);
+                loadMore(2);
+              }}
               className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground"
             >
               Retry
@@ -167,7 +180,7 @@ function Feed() {
               active={i === activeIndex}
               muted={muted}
               onToggleMute={() => setMuted((m) => !m)}
-              onRetry={() => reloadItem(i)}
+              onRetry={() => reloadVideo(i)}
             />
           </div>
         ))}

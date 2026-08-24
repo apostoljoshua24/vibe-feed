@@ -17,13 +17,13 @@ async function fetchOne() {
   if (!res.ok) throw new Error(`Upstream ${res.status}`);
   const data = (await res.json()) as Record<string, unknown>;
   
-  // Strict validation
+  // Strict validation - reject empty or missing URLs
   if (!data || typeof data["url"] !== "string" || !data["url"].trim()) {
     throw new Error("Invalid upstream payload: missing or empty URL");
   }
   
   return {
-    url: data["url"] as string,
+    url: (data["url"] as string).trim(),
     username: (data["username"] as string) ?? "unknown",
     nickname: (data["nickname"] as string) ?? "Unknown",
     title: (data["title"] as string) ?? "Random video",
@@ -36,7 +36,9 @@ export const Route = createFileRoute("/api/public/video")({
       GET: async () => {
         // Upstream is flaky: fire several parallel attempts per round and
         // keep retrying within a time budget before giving up.
-        const deadline = Date.now() + 25_000;
+        const deadline = Date.now() + 30_000; // Increased to 30 seconds
+        let lastError: Error | null = null;
+        
         while (Date.now() < deadline) {
           try {
             const video = await Promise.any([
@@ -46,23 +48,28 @@ export const Route = createFileRoute("/api/public/video")({
               fetchOne(),
               fetchOne(),
             ]);
+            
+            // Double-check that URL is valid before returning
+            if (!video.url || !video.url.trim()) {
+              throw new Error("URL validation failed before response");
+            }
+            
             return new Response(JSON.stringify(video), {
               headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" },
             });
           } catch (err) {
-            console.error("Video fetch attempt failed:", err);
-            await new Promise((r) => setTimeout(r, 200));
+            lastError = err as Error;
+            console.error("Fetch attempt failed:", err);
+            await new Promise((r) => setTimeout(r, 300));
           }
         }
         
-        // Return error response with proper structure
+        // If we get here, all retries failed
+        console.error("All video fetch attempts failed:", lastError);
         return new Response(
           JSON.stringify({ 
-            error: "Unable to load video",
-            url: null,
-            username: "error",
-            nickname: "Failed to load",
-            title: "Please try again"
+            error: "Unable to load video after retries",
+            details: lastError?.message,
           }), 
           {
             status: 502,

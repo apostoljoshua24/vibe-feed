@@ -23,28 +23,29 @@ export function VideoCard({ item, active, muted, onToggleMute, onRetry }: Props)
   const [failed, setFailed] = useState(false);
   const [liked, setLiked] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Validate URL on mount or when item changes
   useEffect(() => {
-    if (!item.url) {
+    if (!item.url || item.url.trim() === "") {
       setLoading(false);
       setFailed(true);
     } else {
       setFailed(false);
       setLoading(true);
     }
-  }, [item.url]);
+  }, [item.id]); // Use item.id instead of item.url to trigger on new items
 
   useEffect(() => {
     const v = ref.current;
-    if (!v) return;
+    if (!v || !item.url) return;
     if (active) {
       v.play().catch(() => {});
     } else {
       v.pause();
       v.currentTime = 0;
     }
-  }, [active]);
+  }, [active, item.url]);
 
   useEffect(() => {
     if (ref.current) ref.current.muted = muted;
@@ -59,10 +60,27 @@ export function VideoCard({ item, active, muted, onToggleMute, onRetry }: Props)
     }
   };
 
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    setLoading(true);
+    setFailed(false);
+    
+    if (item.url && item.url.trim() !== "") {
+      // If URL exists, try reloading the video
+      ref.current?.load();
+    } else if (onRetry) {
+      // If no URL, request a new video
+      onRetry();
+    }
+    
+    // Reset retry flag after 500ms
+    setTimeout(() => setIsRetrying(false), 500);
+  };
+
   return (
     <section className="relative h-[100dvh] w-full snap-start snap-always overflow-hidden bg-background">
       <div className="relative mx-auto flex h-full w-full items-center justify-center md:aspect-[9/16] md:h-full md:w-auto md:shadow-glow">
-        {item.url && (
+        {item.url && item.url.trim() !== "" && (
           <video
             ref={ref}
             src={item.url}
@@ -71,7 +89,10 @@ export function VideoCard({ item, active, muted, onToggleMute, onRetry }: Props)
             playsInline
             muted={muted}
             preload={active ? "auto" : "metadata"}
-            onLoadedData={() => setLoading(false)}
+            onLoadedData={() => {
+              setLoading(false);
+              setFailed(false);
+            }}
             onError={() => {
               setLoading(false);
               setFailed(true);
@@ -91,22 +112,23 @@ export function VideoCard({ item, active, muted, onToggleMute, onRetry }: Props)
 
         {failed && (
           <div className="absolute inset-0 grid place-items-center gap-3 bg-background/85 p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {!item.url ? "Error: No video URL" : "Unable to load video"}
-            </p>
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-foreground">Error: no url</p>
+              <p className="text-xs text-muted-foreground/70">Unable to load video. Tap button to get another video.</p>
+            </div>
             <button
-              onClick={() => {
-                if (item.url) {
-                  setFailed(false);
-                  setLoading(true);
-                  ref.current?.load();
-                } else if (onRetry) {
-                  onRetry();
-                }
-              }}
-              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {item.url ? "Retry" : "Tap to retry"}
+              {isRetrying ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                "Tap to retry"
+              )}
             </button>
           </div>
         )}
@@ -140,7 +162,7 @@ export function VideoCard({ item, active, muted, onToggleMute, onRetry }: Props)
           </p>
         </div>
 
-        {item.url && (
+        {item.url && item.url.trim() !== "" && (
           <div className="absolute inset-x-0 bottom-0 h-0.5 bg-foreground/10">
             <div className="h-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
           </div>

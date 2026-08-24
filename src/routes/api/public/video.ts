@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const SOURCE = "https://girledit-api-version-2.vercel.app/api/request/f";
+const SOURCE = "https://assh-nu.vercel.app/api/request/f";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

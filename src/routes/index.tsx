@@ -24,34 +24,46 @@ export const Route = createFileRoute("/")({
   component: Feed,
 });
 
-async function fetchVideo(retries = 5): Promise<VideoItem> {
+async function fetchVideo(retries = 4): Promise<VideoItem> {
   for (let i = 0; i <= retries; i++) {
     try {
-      const res = await fetch("/api/public/video");
-      if (!res.ok) throw new Error("Network error");
-      const data = await res.json();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
       
-      // Strict validation - reject if no URL or empty URL
-      if (!data.url || typeof data.url !== "string" || data.url.trim() === "") {
-        console.warn(`Attempt ${i + 1}: Invalid URL received:`, data);
-        throw new Error("Invalid response: missing or empty URL");
+      try {
+        const res = await fetch("/api/public/video", {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) throw new Error(`Network error: ${res.status}`);
+        const data = await res.json();
+        
+        // Strict validation - reject if no URL or empty URL
+        if (!data.url || typeof data.url !== "string" || data.url.trim() === "") {
+          console.warn(`Attempt ${i + 1}: Invalid URL received:`, data);
+          throw new Error("Invalid response: missing or empty URL");
+        }
+        
+        return { 
+          ...data, 
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          url: data.url.trim(),
+          username: (data.username || "unknown").toString(),
+          nickname: (data.nickname || "Unknown").toString(),
+          title: (data.title || "Random video").toString(),
+        };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
       }
-      
-      return { 
-        ...data, 
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        url: data.url.trim(),
-        username: (data.username || "unknown").toString(),
-        nickname: (data.nickname || "Unknown").toString(),
-        title: (data.title || "Random video").toString(),
-      };
     } catch (err) {
       console.error(`Fetch attempt ${i + 1} failed:`, err);
       if (i === retries) {
         throw err;
       }
-      // Exponential backoff: 500ms, 1s, 1.5s, 2s, 2.5s
-      await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+      // Exponential backoff: 300ms, 600ms, 900ms, 1.2s, 1.5s
+      await new Promise((r) => setTimeout(r, 300 * (i + 1)));
     }
   }
   throw new Error("Failed to fetch video after retries");

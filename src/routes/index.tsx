@@ -30,7 +30,20 @@ async function fetchVideo(retries = 3): Promise<VideoItem> {
       const res = await fetch("/api/public/video");
       if (!res.ok) throw new Error("failed");
       const data = await res.json();
-      return { ...data, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+      
+      // Validate that we have a URL
+      if (!data.url || typeof data.url !== "string") {
+        throw new Error("No valid URL in response");
+      }
+      
+      return { 
+        ...data, 
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        url: data.url,
+        username: data.username || "unknown",
+        nickname: data.nickname || "Unknown",
+        title: data.title || "Random video",
+      };
     } catch (err) {
       if (i === retries) throw err;
       await new Promise((r) => setTimeout(r, 400));
@@ -56,10 +69,27 @@ function Feed() {
         setItems((prev) => [...prev, video]);
         setError(false);
       }
-    } catch {
+    } catch (err) {
+      console.error("Failed to load video:", err);
       setError(true);
     } finally {
       loadingRef.current = false;
+    }
+  }, []);
+
+  // Reload a specific item by index
+  const reloadItem = useCallback(async (index: number) => {
+    try {
+      const video = await fetchVideo();
+      setItems((prev) => {
+        const updated = [...prev];
+        updated[index] = video;
+        return updated;
+      });
+      setError(false);
+    } catch (err) {
+      console.error("Failed to reload video:", err);
+      setError(true);
     }
   }, []);
 
@@ -137,6 +167,7 @@ function Feed() {
               active={i === activeIndex}
               muted={muted}
               onToggleMute={() => setMuted((m) => !m)}
+              onRetry={() => reloadItem(i)}
             />
           </div>
         ))}

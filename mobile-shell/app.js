@@ -60,7 +60,6 @@ function nativeHttp() {
 
 async function once(endpoint, direct) {
   const http = nativeHttp();
-  const timeoutMs = direct ? 12000 : 10000;
   
   if (http) {
     // Native HTTP: no CORS, no preflight, works from the file:// WebView origin.
@@ -70,20 +69,20 @@ async function once(endpoint, direct) {
         method: direct ? "POST" : "GET",
         headers: direct ? { "Content-Type": "application/json" } : {},
         data: direct ? { credits: "Eugene Aguilar" } : undefined,
-        connectTimeout: timeoutMs,
-        readTimeout: timeoutMs,
+        connectTimeout: 8000,
+        readTimeout: 8000,
       });
       if (res.status < 200 || res.status >= 300) throw new Error("http " + res.status);
       const body = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
       return normalize(body);
     } catch (err) {
-      throw new Error(`Native HTTP failed: ${err.message}`);
+      throw new Error(`Native HTTP: ${err.message}`);
     }
   }
   
   // Fetch API with AbortController for timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   
   try {
     const res = await fetch(endpoint, {
@@ -94,12 +93,10 @@ async function once(endpoint, direct) {
     });
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error("http " + res.status);
-    return normalize(await res.json());
+    const data = await res.json();
+    return normalize(data);
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error("timeout");
-    }
     throw err;
   }
 }
@@ -107,32 +104,39 @@ async function once(endpoint, direct) {
 let lastError = "";
 
 async function fetchVideo() {
-  const deadline = Date.now() + 30000; // Reduced to 30 seconds
+  const deadline = Date.now() + 20000; // 20 seconds total
   let useProxy = false;
   let attempts = 0;
   
   while (Date.now() < deadline) {
     try {
-      const endpoint = useProxy ? PROXIES[proxyIdx % PROXIES.length] : SOURCE;
-      const promises = [0, 1, 2].map(() => once(endpoint, !useProxy)); // Reduced parallel attempts
-      return await Promise.any(promises);
-    } catch (err) {
       attempts++;
-      lastError = (err && err.errors ? err.errors[0] : err) + "";
+      const endpoint = useProxy ? PROXIES[proxyIdx % PROXIES.length] : SOURCE;
       
-      // Switch strategy after 2 attempts
-      if (attempts % 2 === 0) {
+      // Try 2 parallel requests
+      const promises = [once(endpoint, !useProxy), once(endpoint, !useProxy)];
+      const result = await Promise.any(promises);
+      
+      console.log(`✓ Video fetched on attempt ${attempts}`);
+      return result;
+    } catch (err) {
+      lastError = err.message || err + "";
+      console.warn(`✗ Attempt ${attempts} failed:`, lastError);
+      
+      // Switch between direct and proxy more aggressively
+      if (attempts % 1 === 0) {
         useProxy = !useProxy;
-        if (useProxy) proxyIdx++;
+        if (useProxy) proxyIdx = (proxyIdx + 1) % PROXIES.length;
       }
       
-      // Shorter wait before retry
-      await new Promise((r) => setTimeout(r, 200));
+      // Very short wait before retry
+      await new Promise((r) => setTimeout(r, 100));
     }
   }
-  throw new Error("unavailable after 30 seconds");
+  
+  console.error("✗ All attempts failed after", attempts);
+  throw new Error(`Failed after ${attempts} attempts: ${lastError}`);
 }
-
 
 function buildCard(item, index) {
   const node = tpl.content.firstElementChild.cloneNode(true);
@@ -163,7 +167,10 @@ function buildCard(item, index) {
   likeCount.textContent = String(Math.floor(Math.random() * 900) + 40);
   node.querySelector(".comment .count").textContent = String(Math.floor(Math.random() * 200) + 3);
 
-  video.addEventListener("loadeddata", () => spinner.classList.add("hidden"));
+  video.addEventListener("loadeddata", () => {
+    spinner.classList.add("hidden");
+    failed.classList.add("hidden");
+  });
   video.addEventListener("error", () => {
     spinner.classList.add("hidden");
     failed.classList.remove("hidden");
@@ -171,11 +178,29 @@ function buildCard(item, index) {
   video.addEventListener("timeupdate", () => {
     if (video.duration) fill.style.width = (video.currentTime / video.duration) * 100 + "%";
   });
-  node.querySelector(".retry").addEventListener("click", () => {
-    failed.classList.add("hidden");
+  
+  const retryBtn = node.querySelector(".retry");
+  retryBtn.addEventListener("click", async () => {
     spinner.classList.remove("hidden");
-    video.load();
-    playVideo(video);
+    failed.classList.add("hidden");
+    retryBtn.disabled = true;
+    retryBtn.textContent = "Retrying...";
+    
+    try {
+      // Try to reload the current video
+      video.src = item.url;
+      video.load();
+      await new Promise(r => setTimeout(r, 100));
+      playVideo(video);
+      retryBtn.disabled = false;
+      retryBtn.textContent = "Retry";
+    } catch (err) {
+      console.error("Retry failed:", err);
+      failed.classList.remove("hidden");
+      spinner.classList.add("hidden");
+      retryBtn.disabled = false;
+      retryBtn.textContent = "Retry";
+    }
   });
 
   let liked = false;
@@ -251,15 +276,20 @@ async function loadMore(count) {
       }
     }
   } catch (err) {
+    console.error("loadMore error:", err);
     if (!cards.length) {
-      splash.querySelector(".splash-text").textContent = "Tap to retry";
+      const text = splash.querySelector(".splash-text");
       const hint = splash.querySelector(".splash-hint");
-      if (hint) hint.textContent = lastError.slice(0, 120);
-      splash.onclick = () => {
-        splash.querySelector(".splash-text").textContent = "Loading feed";
+      text.textContent = "Tap to retry";
+      if (hint) hint.textContent = lastError.slice(0, 100);
+      
+      splash.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        text.textContent = "Loading feed...";
         if (hint) hint.textContent = "";
         splash.onclick = null;
-        loadMore(2);
+        await loadMore(2);
       };
     }
   } finally {
@@ -274,4 +304,5 @@ document.addEventListener("visibilitychange", () => {
   else playVideo(card.video);
 });
 
+console.log("🎬 App initialized. Starting video load...");
 loadMore(2);
